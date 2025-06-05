@@ -44,7 +44,7 @@ jobs:
     steps:
       - name: Trigger sync in permission manager
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "🚀 Triggering sync in permission manager repository..."
           
