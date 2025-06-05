@@ -1,0 +1,79 @@
+name: Trigger Permission Manager Sync
+
+on:
+  push:
+    branches: [master, main]
+    paths: ['entities.json']
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      entities-changed: ${{ steps.changes.outputs.entities }}
+      permissions-changed: ${{ steps.changes.outputs.permissions }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "entities=true" >> $GITHUB_OUTPUT
+            echo "permissions=true" >> $GITHUB_OUTPUT
+            echo "🔄 Manual trigger - assuming all changes"
+          else
+            # Check if entities.json was modified
+            if git diff --name-only HEAD~1 HEAD | grep -q "entities.json"; then
+              echo "entities=true" >> $GITHUB_OUTPUT
+              echo "permissions=true" >> $GITHUB_OUTPUT
+              echo "✅ entities.json was modified"
+            else
+              echo "entities=false" >> $GITHUB_OUTPUT
+              echo "permissions=false" >> $GITHUB_OUTPUT
+              echo "ℹ️ entities.json was not modified"
+            fi
+          fi
+
+  trigger-sync:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.entities == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync in permission manager
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🚀 Triggering sync in permission manager repository..."
+          
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.everest-preview+json" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/repos/wyaaung/nginx-monorepo/dispatches \
+            -d "{
+              \"event_type\": \"sync-entities-permissions\",
+              \"client_payload\": {
+                \"repo_owner\": \"${{ github.repository_owner }}\",
+                \"repo_name\": \"json_collections\",
+                \"file_path\": \"entities.json\",
+                \"triggered_by\": \"${{ github.actor }}\",
+                \"commit_sha\": \"${{ github.sha }}\",
+                \"ref\": \"${{ github.ref }}\"
+              }
+            }"
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Successfully triggered permission manager sync"
+          else
+            echo "❌ Failed to trigger permission manager sync"
+            exit 1
+          fi
+
+      - name: Create deployment status
+        if: always()
+        run: |
+          echo "📊 Sync trigger completed"
+          echo "🔗 Check the permission manager repository for sync results"
