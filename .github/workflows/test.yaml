@@ -39,7 +39,7 @@ jobs:
 
   trigger-sync:
     needs: detect-changes
-    if: needs.detect-changes.outputs.entities == 'true'
+    if: needs.detect-changes.outputs.entities-changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger sync in permission manager
