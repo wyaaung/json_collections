@@ -48,7 +48,7 @@ jobs:
         run: |
           echo "🚀 Triggering sync in permission manager repository..."
           
-          curl -X POST \
+          response=$(curl -s -w "%{http_code}" -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.everest-preview+json" \
             -H "Content-Type: application/json" \
@@ -63,12 +63,16 @@ jobs:
                 \"commit_sha\": \"${{ github.sha }}\",
                 \"ref\": \"${{ github.ref }}\"
               }
-            }"
+            }")
           
-          if [ $? -eq 0 ]; then
+          http_code="${response: -3}"
+          echo "HTTP Status Code: $http_code"
+          
+          if [ "$http_code" -eq 204 ]; then
             echo "✅ Successfully triggered permission manager sync"
           else
             echo "❌ Failed to trigger permission manager sync"
+            echo "Response: $response"
             exit 1
           fi
 
